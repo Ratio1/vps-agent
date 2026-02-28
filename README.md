@@ -89,6 +89,24 @@ Now ask things like:
 - Ask the agent to list/show details first before mutating anything.
 - Never commit `.env`.
 
+## Automated regression checks
+
+Run read-only regression checks (instance count + status distribution) for all providers that are enabled via `.env` auth hints:
+
+Linux/macOS:
+
+```bash
+./scripts/regression-tests.sh
+```
+
+Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/regression-tests.ps1
+```
+
+By default, AWS/GCP/Azure checks run only when `.env` contains provider auth hints. To also include already logged-in local CLI sessions, set `REGRESSION_USE_LOCAL_SESSIONS=true` before running the script.
+
 ## Files you may care about
 
 - Devcontainer config: `.devcontainer/devcontainer.json`
