@@ -1,0 +1,6 @@
+# Windows Codex MCP config
+# Copy to .codex/config.toml
+
+[mcp_servers.hostinger_api]
+command = "powershell"
+args = ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/hostinger-mcp.ps1"]

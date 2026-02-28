@@ -1,0 +1,6 @@
+# Linux/macOS Codex MCP config
+# Copy to .codex/config.toml
+
+[mcp_servers.hostinger_api]
+command = "bash"
+args = ["scripts/hostinger-mcp.sh"]
