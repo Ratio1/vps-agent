@@ -1,2 +1,3 @@
 app:
-  version: 0.2.2
+  name: ratio1-vps-agent
+  version: 0.1.3
