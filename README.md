@@ -2,6 +2,8 @@
 
 Zero-setup bootstrap for a Codex agent that manages Hostinger VPS fleet using the official global MCP server: `hostinger-api-mcp`.
 
+This repository also supports an optional remote Contabo MCP connector via `mcp-remote` (no custom MCP server code in this repo).
+
 This repository does **not** implement a custom MCP server.
 
 ## What happens automatically in Dev Container
@@ -89,6 +91,28 @@ Now ask things like:
 - Ask the agent to list/show details first before mutating anything.
 - Never commit `.env`.
 
+## Optional: Contabo MCP Connector
+
+This repo ships wrappers for the remote Contabo connector endpoint:
+
+- `https://contabo.run.mcp.com.ai/mcp`
+- Transport: `Streamable HTTP`
+
+Setup:
+
+1. Add one of these in `.env`:
+   - `CONTABO_CLIENT_SECRET` (used as connector API key), or
+   - `CONTABO_MCP_API_KEY`, or
+   - `CONTABO_ACCESS_TOKEN`
+2. Optional endpoint overrides:
+   - `CONTABO_MCP_URL` (default: `https://contabo.run.mcp.com.ai/mcp`)
+   - `CONTABO_MCP_TRANSPORT` (default: `http-only`)
+3. Use the updated `.codex/config*.toml` template(s), which include:
+   - `hostinger_api` (official Hostinger MCP wrapper)
+   - `contabo_api` (remote Contabo MCP wrapper)
+
+The wrapper runs `mcp-remote` in silent mode to avoid leaking credential headers in logs.
+
 ## Automated regression checks
 
 Run read-only regression checks (instance count + status distribution) for all providers that are enabled via `.env` auth hints:
@@ -113,7 +137,10 @@ By default, AWS/GCP/Azure checks run only when `.env` contains provider auth hin
 - Onboarding script: `scripts/devcontainer-onboarding.sh`
 - Agent launcher with intro prompt: `scripts/start-agent.sh`
 - MCP wrapper (Linux): `scripts/hostinger-mcp.sh`
+- MCP wrapper (Linux, Contabo): `scripts/contabo-mcp.sh`
+- MCP wrapper (Windows, Contabo): `scripts/contabo-mcp.ps1`
 - Linux Codex MCP template: `.codex/config.toml.example`
+- Windows Codex MCP template: `.codex/config.windows.toml.example`
 - Agent rules: `AGENTS.md`
 
 ## Manual setup outside Dev Container (optional)

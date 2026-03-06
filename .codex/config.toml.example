@@ -4,3 +4,7 @@
 [mcp_servers.hostinger_api]
 command = "bash"
 args = ["scripts/hostinger-mcp.sh"]
+
+[mcp_servers.contabo_api]
+command = "bash"
+args = ["scripts/contabo-mcp.sh"]
