@@ -1,5 +1,30 @@
 # Iterations
 
+## 2026-03-17 - TODO Plan Refactor for Provider Sequencing
+
+### BUILDER-1
+
+- Reviewed the existing `TODO.md` and current architecture notes.
+- Identified that the plan was broad and provider-agnostic, but did not make Hostinger gating and Contabo prioritization explicit.
+
+### CRITIC-1
+
+- Risk: the old backlog allowed provider expansion to look parallel or interchangeable.
+- Decision: rewrite the work plan as sequential provider tracks with hard entry and exit criteria.
+
+### BUILDER-2
+
+- Replaced `TODO.md` with a provider-by-provider rollout plan.
+- Made Hostinger baseline verification the gate and Contabo productization the immediate next focus.
+
+### CRITIC-2
+
+- Checked that the new plan still preserves repo constraints: no custom MCP server, doctor-first validation, read-first guardrails, secret safety, and cross-platform parity.
+
+### BUILDER-3
+
+- Finalized the plan wording so it is clearly a planning document only and not an execution checklist.
+
 ## 2026-03-05 - Contabo MCP Enablement
 
 ### BUILDER-1
