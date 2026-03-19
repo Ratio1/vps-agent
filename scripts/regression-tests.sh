@@ -4,22 +4,45 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-if [[ -f ".env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source ".env"
-  set +a
-fi
-
 PASS_COUNT=0
 FAIL_COUNT=0
 SKIP_COUNT=0
 declare -a FAILURE_PROVIDERS=()
 USE_LOCAL_SESSIONS="$(echo "${REGRESSION_USE_LOCAL_SESSIONS:-false}" | tr '[:upper:]' '[:lower:]')"
+PROFILES_FILE="${VPS_PROFILES_PATH:-$ROOT_DIR/profiles.json}"
+PROFILES_SCRIPT="$ROOT_DIR/scripts/profiles.js"
 
 ok() { echo "[pass] $1"; }
 warn() { echo "[skip] $1"; }
 err() { echo "[fail] $1"; }
+
+load_provider_profile() {
+  local provider="$1"
+
+  if [[ ! -f "$PROFILES_FILE" ]]; then
+    return 0
+  fi
+
+  local count
+  if ! count="$(node "$PROFILES_SCRIPT" list --provider "$provider" --format json --optional | jq -r 'length')"; then
+    return 1
+  fi
+
+  if [[ "$count" == "0" ]]; then
+    return 0
+  fi
+
+  local exports
+  if ! exports="$(node "$PROFILES_SCRIPT" resolve --provider "$provider" --format shell)"; then
+    return 1
+  fi
+
+  if [[ -n "$exports" ]]; then
+    eval "$exports"
+  fi
+
+  return 0
+}
 
 sha1_hex() {
   if command -v sha1sum >/dev/null 2>&1; then
@@ -62,9 +85,14 @@ run_provider() {
 }
 
 test_hostinger() {
+  if ! load_provider_profile hostinger; then
+    err "hostinger: unable to resolve the selected profile"
+    return 1
+  fi
+
   local token="${HOSTINGER_API_TOKEN:-${API_TOKEN:-}}"
   if [[ -z "$token" ]]; then
-    warn "hostinger: token not configured (HOSTINGER_API_TOKEN/API_TOKEN)"
+    warn "hostinger: token not configured (selected profile or API_TOKEN/HOSTINGER_API_TOKEN)"
     return 10
   fi
 
@@ -116,14 +144,71 @@ test_hostinger() {
   return 0
 }
 
+test_contabo() {
+  if ! load_provider_profile contabo; then
+    err "contabo: unable to resolve the selected profile"
+    return 1
+  fi
+
+  local access_token="${CONTABO_ACCESS_TOKEN:-${ACCESS_TOKEN:-}}"
+  local client_id="${CONTABO_CLIENT_ID:-${CLIENT_ID:-}}"
+  local client_secret="${CONTABO_CLIENT_SECRET:-${CLIENT_SECRET:-}}"
+  local api_user="${CONTABO_API_USER:-${API_USER:-}}"
+  local api_password="${CONTABO_API_PASSWORD:-${API_PASSWORD:-}}"
+
+  if [[ -z "$access_token" ]] && ([[ -z "$client_id" ]] || [[ -z "$client_secret" ]] || [[ -z "$api_user" ]] || [[ -z "$api_password" ]]); then
+    warn "contabo: credentials not configured (CONTABO_ACCESS_TOKEN or CLIENT_ID/CLIENT_SECRET/API_USER/API_PASSWORD)"
+    return 10
+  fi
+
+  local response
+  if ! response="$(node "$ROOT_DIR/scripts/contabo-api.js" list-instances --format json 2>/dev/null)"; then
+    err "contabo: unable to list compute instances"
+    return 1
+  fi
+
+  local count
+  count="$(jq -r '
+    if type == "array" then length
+    elif (.data | type == "array") then (.data | length)
+    elif (.instances | type == "array") then (.instances | length)
+    else -1
+    end
+  ' <<<"$response")"
+
+  if ! [[ "$count" =~ ^[0-9]+$ ]]; then
+    err "contabo: unexpected API payload shape"
+    return 1
+  fi
+
+  local states
+  states="$(jq -c '
+    (if type == "array" then .
+     elif (.data | type == "array") then .data
+     elif (.instances | type == "array") then .instances
+     else [] end)
+    | map(.status // .state // "unknown")
+    | group_by(.)
+    | map({state: .[0], count: length})
+  ' <<<"$response")"
+
+  ok "contabo: listed $count instances; state distribution: $states"
+  return 0
+}
+
 test_aws() {
+  if ! load_provider_profile aws; then
+    err "aws: unable to resolve the selected profile"
+    return 1
+  fi
+
   local has_auth_hint=0
   if [[ -n "${AWS_PROFILE:-}" ]] || { [[ -n "${AWS_ACCESS_KEY_ID:-}" ]] && [[ -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; }; then
     has_auth_hint=1
   fi
 
   if [[ "$has_auth_hint" -eq 0 ]] && [[ ! "$USE_LOCAL_SESSIONS" =~ ^(1|true|yes|y)$ ]]; then
-    warn "aws: skipped (no .env auth hints; set REGRESSION_USE_LOCAL_SESSIONS=true to use local CLI sessions)"
+    warn "aws: skipped (no selected profile credentials; set REGRESSION_USE_LOCAL_SESSIONS=true to use local CLI sessions)"
     return 10
   fi
 
@@ -173,13 +258,18 @@ test_aws() {
 }
 
 test_gcp() {
+  if ! load_provider_profile gcp; then
+    err "gcp: unable to resolve the selected profile"
+    return 1
+  fi
+
   local has_auth_hint=0
   if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]] || [[ -n "${CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE:-}" ]]; then
     has_auth_hint=1
   fi
 
   if [[ "$has_auth_hint" -eq 0 ]] && [[ ! "$USE_LOCAL_SESSIONS" =~ ^(1|true|yes|y)$ ]]; then
-    warn "gcp: skipped (no .env auth hints; set REGRESSION_USE_LOCAL_SESSIONS=true to use local CLI sessions)"
+    warn "gcp: skipped (no selected profile credentials; set REGRESSION_USE_LOCAL_SESSIONS=true to use local CLI sessions)"
     return 10
   fi
 
@@ -238,6 +328,11 @@ test_gcp() {
 }
 
 test_azure() {
+  if ! load_provider_profile azure; then
+    err "azure: unable to resolve the selected profile"
+    return 1
+  fi
+
   local client_id="${AZURE_CLIENT_ID:-${ARM_CLIENT_ID:-}}"
   local tenant_id="${AZURE_TENANT_ID:-${ARM_TENANT_ID:-}}"
   local client_secret="${AZURE_CLIENT_SECRET:-${ARM_CLIENT_SECRET:-}}"
@@ -249,7 +344,7 @@ test_azure() {
   fi
 
   if [[ "$has_sp_hint" -eq 0 ]] && [[ -z "$subscription_id" ]] && [[ ! "$USE_LOCAL_SESSIONS" =~ ^(1|true|yes|y)$ ]]; then
-    warn "azure: skipped (no .env auth hints; set REGRESSION_USE_LOCAL_SESSIONS=true to use local CLI sessions)"
+    warn "azure: skipped (no selected profile credentials; set REGRESSION_USE_LOCAL_SESSIONS=true to use local CLI sessions)"
     return 10
   fi
 
@@ -364,6 +459,11 @@ ovh_signed_request() {
 }
 
 test_ovh() {
+  if ! load_provider_profile ovh; then
+    err "ovh: unable to resolve the selected profile"
+    return 1
+  fi
+
   if [[ -z "${OVH_APPLICATION_KEY:-}" ]] || [[ -z "${OVH_APPLICATION_SECRET:-}" ]] || [[ -z "${OVH_CONSUMER_KEY:-}" ]]; then
     warn "ovh: credentials not configured (OVH_APPLICATION_KEY/OVH_APPLICATION_SECRET/OVH_CONSUMER_KEY)"
     return 10
@@ -417,6 +517,7 @@ test_ovh() {
 
 echo "Running provider regression checks (read/list only)..."
 run_provider "hostinger" test_hostinger
+run_provider "contabo" test_contabo
 run_provider "aws" test_aws
 run_provider "gcp" test_gcp
 run_provider "azure" test_azure

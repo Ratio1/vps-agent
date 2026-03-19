@@ -20,49 +20,6 @@ ensure_file() {
   fi
 }
 
-env_get() {
-  local key="$1"
-  local file="$2"
-  local line
-  line=$(grep -E "^[[:space:]]*${key}=" "$file" | tail -n 1 || true)
-  if [[ -z "$line" ]]; then
-    echo ""
-    return
-  fi
-
-  local value="${line#*=}"
-  value="${value%\"}"
-  value="${value#\"}"
-  value="${value%\'}"
-  value="${value#\'}"
-  echo "$value"
-}
-
-env_upsert() {
-  local key="$1"
-  local value="$2"
-  local file="$3"
-  local tmp
-  tmp=$(mktemp)
-
-  awk -v key="$key" -v value="$value" '
-    BEGIN { updated = 0 }
-    $0 ~ "^[[:space:]]*" key "=" {
-      print key "=" value
-      updated = 1
-      next
-    }
-    { print }
-    END {
-      if (!updated) {
-        print key "=" value
-      }
-    }
-  ' "$file" > "$tmp"
-
-  mv "$tmp" "$file"
-}
-
 install_bashrc_autostart_hook() {
   local bashrc_path="$HOME/.bashrc"
   local hook_start="# >>> VPS Agent codex autostart >>>"
@@ -105,10 +62,9 @@ EOF
   mv "$tmp" "$bashrc_path"
 }
 
-ensure_file .env
-if [[ ! -s .env && -f .env.template ]]; then
-  cp .env.template .env
-  info "Created .env from .env.template"
+if [[ ! -f profiles.json && -f profiles.json.template ]]; then
+  cp profiles.json.template profiles.json
+  info "Created profiles.json from profiles.json.template"
 fi
 
 if ! command -v codex >/dev/null 2>&1; then
@@ -143,8 +99,7 @@ else
           fail "OPENAI_API_KEY cannot be empty"
         fi
         printf "%s\n" "$openai_key" | codex login --with-api-key
-        env_upsert "OPENAI_API_KEY" "$openai_key" .env
-        ok "Saved OPENAI_API_KEY in .env"
+        ok "Configured Codex API-key login"
         ;;
       *)
         codex login
@@ -157,24 +112,61 @@ else
   fi
 fi
 
-hostinger_token="$(env_get "HOSTINGER_API_TOKEN" .env)"
-if [[ -n "$hostinger_token" ]]; then
-  ok "HOSTINGER_API_TOKEN already present in .env"
+profiles_overview="$(node scripts/profiles.js list --format text --optional 2>/dev/null || true)"
+selected_hostinger_token="$(
+  node scripts/profiles.js resolve --provider hostinger --format json --optional 2>/dev/null \
+    | node -e 'const fs=require("fs"); const raw=fs.readFileSync(0,"utf8").trim(); if (!raw) process.exit(0); const data=JSON.parse(raw); const env=data.env || {}; process.stdout.write(String(env.API_TOKEN || env.HOSTINGER_API_TOKEN || "").trim());' \
+    2>/dev/null || true
+)"
+
+if [[ -n "$profiles_overview" && "$profiles_overview" != "No accounts configured." ]]; then
+  ok "profiles.json already contains account entries"
+  printf "%s\n" "$profiles_overview"
 else
-  if is_tty; then
+  warn "profiles.json does not contain any configured accounts yet"
+fi
+
+if is_tty; then
+  configure_hostinger="y"
+  if [[ -n "$selected_hostinger_token" ]]; then
+    ok "The selected Hostinger account already has a token"
+    printf "Add or update a default Hostinger account now? [y/N]: "
+    read -r configure_hostinger
+    configure_hostinger="$(echo "${configure_hostinger:-n}" | tr '[:upper:]' '[:lower:]')"
+  elif [[ -n "$profiles_overview" && "$profiles_overview" != "No accounts configured." ]]; then
+    warn "The selected Hostinger account is missing a usable token"
+  fi
+
+  if [[ "$configure_hostinger" =~ ^(y|yes)$ ]] || [[ -z "$selected_hostinger_token" ]]; then
+    printf "Tenant name [customer-a]: "
+    read -r tenant_name
+    tenant_name="${tenant_name:-customer-a}"
+
+    printf "Hostinger account name [primary]: "
+    read -r hostinger_account
+    hostinger_account="${hostinger_account:-primary}"
+
     printf "Paste your HOSTINGER_API_TOKEN (input hidden): "
     read -r -s hostinger_token
     echo
     if [[ -z "$hostinger_token" ]]; then
       fail "HOSTINGER_API_TOKEN cannot be empty"
     fi
-    env_upsert "HOSTINGER_API_TOKEN" "$hostinger_token" .env
-    ok "Saved HOSTINGER_API_TOKEN in .env"
-  else
-    warn "HOSTINGER_API_TOKEN is missing in .env"
-    warn "Run in container terminal: bash scripts/devcontainer-onboarding.sh"
-    exit 0
+
+    node scripts/profiles.js upsert-account \
+      --tenant "$tenant_name" \
+      --provider hostinger \
+      --account "$hostinger_account" \
+      --credential "API_TOKEN=$hostinger_token" \
+      --setting "HOSTINGER_MCP_DEBUG=false" \
+      --make-default >/dev/null
+
+    ok "Saved default Hostinger account in profiles.json"
   fi
+else
+  warn "profiles.json must be updated manually in a terminal session"
+  warn "Run in container terminal: bash scripts/devcontainer-onboarding.sh"
+  exit 0
 fi
 
 if [[ ! -f .codex/config.toml ]]; then

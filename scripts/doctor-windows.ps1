@@ -1,6 +1,12 @@
 $ErrorActionPreference = "Stop"
 $RootDir = Split-Path -Parent $PSScriptRoot
 Set-Location $RootDir
+$ProfilesFile = if ($env:VPS_PROFILES_PATH) { $env:VPS_PROFILES_PATH } else { Join-Path $RootDir "profiles.json" }
+$ProfilesLabel = if ($ProfilesFile.StartsWith("$RootDir$([IO.Path]::DirectorySeparatorChar)")) {
+  $ProfilesFile.Substring($RootDir.Length + 1)
+} else {
+  $ProfilesFile
+}
 
 function Ok($msg) { Write-Host "[ok] $msg" }
 function Warn($msg) { Write-Host "[warn] $msg" }
@@ -12,20 +18,39 @@ if (Get-Command npx -ErrorAction SilentlyContinue) { Ok "npx available" } else {
 if (Get-Command codex -ErrorAction SilentlyContinue) { Ok "codex installed" } else { Fail "codex missing" }
 if (Get-Command hostinger-api-mcp -ErrorAction SilentlyContinue) { Ok "hostinger-api-mcp installed" } else { Fail "hostinger-api-mcp missing" }
 
-$envFile = Join-Path $RootDir ".env"
-$hasContaboMcpHint = $false
-$hasContaboClientSecret = $false
-$hasContaboClientId = $false
+if (Test-Path $ProfilesFile) {
+  Ok "$ProfilesLabel present"
+  try {
+    $profilesReport = & node "scripts/profiles.js" validate --file $ProfilesFile --format json
+    if ($LASTEXITCODE -ne 0) {
+      throw "$ProfilesLabel validation failed"
+    }
+    $profiles = ($profilesReport -join [Environment]::NewLine) | ConvertFrom-Json
+    Ok "$ProfilesLabel parsed successfully"
+    Ok "$ProfilesLabel summary: $($profiles.tenants) tenants, $($profiles.accounts.Count) accounts"
+    foreach ($validationWarning in $profiles.warnings) {
+      Warn $validationWarning
+    }
 
-if (Test-Path $envFile) {
-  $hasToken = (Select-String -Path $envFile -Pattern '^\s*HOSTINGER_API_TOKEN\s*=\s*.+$' -SimpleMatch:$false)
-  if ($hasToken) { Ok "HOSTINGER_API_TOKEN appears set in .env" } else { Warn "HOSTINGER_API_TOKEN appears empty in .env" }
+    $hostingerProfiles = (& node "scripts/profiles.js" list --file $ProfilesFile --provider hostinger --format json --optional) -join [Environment]::NewLine | ConvertFrom-Json
+    $contaboProfiles = (& node "scripts/profiles.js" list --file $ProfilesFile --provider contabo --format json --optional) -join [Environment]::NewLine | ConvertFrom-Json
 
-  $hasContaboMcpHint = [bool](Select-String -Path $envFile -Pattern '^\s*(CONTABO_MCP_API_KEY|CONTABO_ACCESS_TOKEN)\s*=\s*.+$' -SimpleMatch:$false)
-  $hasContaboClientSecret = [bool](Select-String -Path $envFile -Pattern '^\s*CONTABO_CLIENT_SECRET\s*=\s*.+$' -SimpleMatch:$false)
-  $hasContaboClientId = [bool](Select-String -Path $envFile -Pattern '^\s*CONTABO_CLIENT_ID\s*=\s*.+$' -SimpleMatch:$false)
+    if ($hostingerProfiles.Count -gt 0) {
+      Ok "Hostinger account(s) configured in $ProfilesLabel: $($hostingerProfiles.Count)"
+    } else {
+      Warn "No hostinger accounts configured in $ProfilesLabel"
+    }
+
+    if ($contaboProfiles.Count -gt 0) {
+      Ok "Contabo account(s) configured in $ProfilesLabel: $($contaboProfiles.Count)"
+    } else {
+      Warn "No contabo accounts configured in $ProfilesLabel"
+    }
+  } catch {
+    Fail "$ProfilesLabel is invalid"
+  }
 } else {
-  Warn ".env does not exist"
+  Warn "$ProfilesLabel does not exist"
 }
 
 if (Test-Path "scripts/contabo-mcp.ps1") {
@@ -34,16 +59,40 @@ if (Test-Path "scripts/contabo-mcp.ps1") {
   Warn "scripts/contabo-mcp.ps1 missing"
 }
 
-if ($hasContaboMcpHint) {
-  Ok "Contabo MCP auth hint appears set"
-} elseif ($hasContaboClientSecret) {
-  Ok "Contabo client secret appears set (used as Contabo MCP API key)"
-} elseif ($hasContaboClientId) {
-  Warn "CONTABO_CLIENT_ID is set but no Contabo MCP auth hint found"
-}
-
 if (Test-Path ".codex/config.toml") {
   Ok ".codex/config.toml present"
+  if (Select-String -Path ".codex/config.toml" -Pattern '^\[agents\]\s*$' -SimpleMatch:$false) {
+    Ok "[agents] section present in .codex/config.toml"
+  } else {
+    Warn "[agents] section missing from .codex/config.toml"
+  }
+  if (Select-String -Path ".codex/config.toml" -Pattern '^\[mcp_servers\.openaiDeveloperDocs\]\s*$' -SimpleMatch:$false) {
+    Ok "OpenAI Docs MCP configured in .codex/config.toml"
+  } else {
+    Warn "OpenAI Docs MCP missing from .codex/config.toml"
+  }
 } else {
   Warn ".codex/config.toml missing"
+}
+
+$requiredCodexAgents = @(
+  "ops-explorer.toml",
+  "ops-builder.toml",
+  "ops-critic.toml",
+  "ops-verifier.toml",
+  "docs-researcher.toml"
+)
+
+if (Test-Path ".codex/agents") {
+  Ok ".codex/agents present"
+  foreach ($agentFile in $requiredCodexAgents) {
+    $agentPath = Join-Path ".codex/agents" $agentFile
+    if (Test-Path $agentPath) {
+      Ok "$agentPath present"
+    } else {
+      Warn "$agentPath missing"
+    }
+  }
+} else {
+  Warn ".codex/agents missing"
 }

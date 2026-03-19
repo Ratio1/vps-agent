@@ -1,6 +1,13 @@
 # Linux/macOS Codex MCP config
 # Copy to .codex/config.toml
 
+project_doc_max_bytes = 65536
+
+[agents]
+max_threads = 6
+max_depth = 1
+job_max_runtime_seconds = 1800
+
 [mcp_servers.hostinger_api]
 command = "bash"
 args = ["scripts/hostinger-mcp.sh"]
@@ -8,3 +15,33 @@ args = ["scripts/hostinger-mcp.sh"]
 [mcp_servers.contabo_api]
 command = "bash"
 args = ["scripts/contabo-mcp.sh"]
+
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+
+# Implementation profile for bounded actor-critic sessions.
+[profiles.vps_actor_critic]
+model = "gpt-5.3-codex"
+model_reasoning_effort = "high"
+personality = "pragmatic"
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+web_search = "cached"
+
+# Read-only review profile for audit-heavy work.
+[profiles.vps_review]
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+personality = "pragmatic"
+sandbox_mode = "read-only"
+approval_policy = "never"
+web_search = "cached"
+
+# Documentation lookup profile for OpenAI/Codex configuration work.
+[profiles.vps_docs]
+model = "gpt-5-mini"
+model_reasoning_effort = "medium"
+personality = "pragmatic"
+sandbox_mode = "read-only"
+approval_policy = "never"
+web_search = "cached"

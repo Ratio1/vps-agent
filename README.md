@@ -1,8 +1,12 @@
 # VPS Agent
 
-Zero-setup bootstrap for a Codex agent that manages Hostinger VPS fleet using the official global MCP server: `hostinger-api-mcp`.
+Zero-setup bootstrap for a Codex agent that manages multi-tenant VPS fleets from this repository.
 
-This repository also supports an optional remote Contabo MCP connector via `mcp-remote` (no custom MCP server code in this repo).
+The primary supported path is Hostinger via the official global MCP server: `hostinger-api-mcp`.
+
+This repository also supports direct read/list Contabo operations via the official REST API, plus an optional remote Contabo MCP connector via `mcp-remote` (no custom MCP server code in this repo).
+
+It now also ships project-scoped Codex artefacts for bounded actor-critic work: `AGENTS.md`, `.codex/config.toml`, reusable custom agents under `.codex/agents/`, and prompt templates in `PROMPT.md`.
 
 This repository does **not** implement a custom MCP server.
 
@@ -16,8 +20,8 @@ When you open this repo in a VS Code Dev Container:
 2. A guided onboarding script runs automatically.
 3. The script guides you through:
    - Codex login (ChatGPT or API key)
-   - Entering your `HOSTINGER_API_TOKEN`
-   - Writing `.env` for you
+   - Creating or updating `profiles.json`
+   - Entering a default Hostinger tenant/account token
    - Final health check
 4. Codex starts automatically and sends an intro that includes:
    - Agent purpose
@@ -56,9 +60,9 @@ The script runs automatically and asks for:
 1. Codex authentication:
    - `ChatGPT login` (recommended), or
    - `OPENAI_API_KEY`
-2. Your `HOSTINGER_API_TOKEN` (from Hostinger hPanel -> Profile -> API)
+2. Your default tenant name and a `HOSTINGER_API_TOKEN` (from Hostinger hPanel -> Profile -> API)
 
-The script writes `.env` for you and runs checks.
+The script writes `profiles.json` for you and runs checks.
 
 If the prompt window does not appear, run manually in the container terminal:
 
@@ -89,7 +93,151 @@ Now ask things like:
 
 - Creating/deleting/upgrading VPS can cost money.
 - Ask the agent to list/show details first before mutating anything.
-- Never commit `.env`.
+- Never commit `profiles.json`.
+
+## Codex Workflow Profiles
+
+The repository now includes a bounded actor-critic workflow and reusable project-scoped Codex profiles.
+
+Common entry points:
+
+```bash
+codex -p vps_actor_critic
+codex -p vps_review "Review this branch and list real risks first."
+codex -p vps_docs "Look up the latest Codex config keys for custom agents."
+```
+
+When you explicitly ask for parallel agent work, Codex can use these custom agents from `.codex/agents/`:
+
+- `ops_explorer`
+- `ops_builder`
+- `ops_critic`
+- `ops_verifier`
+- `docs_researcher`
+
+The default repository workflow is still doctor-first, read-first, and confirmation-gated for destructive or billable provider actions.
+
+## Multi-Tenant Profiles
+
+Repository credentials now live in `profiles.json`, not `.env`.
+
+- Tracked example: `profiles.json.template`
+- Real local file: `profiles.json`
+- Shape:
+
+```json
+{
+  "tenants": [
+    {
+      "tenant": "customer-a",
+      "accounts": [
+        {
+          "provider": "hostinger",
+          "credentials": {
+            "API_TOKEN": "..."
+          }
+        },
+        {
+          "provider": "contabo",
+          "credentials": {
+            "CLIENT_ID": "...",
+            "CLIENT_SECRET": "...",
+            "API_USER": "...",
+            "API_PASSWORD": "..."
+          }
+        }
+      ]
+    },
+    {
+      "tenant": "customer-b",
+      "accounts": [
+        {
+          "provider": "hostinger",
+          "credentials": {
+            "API_TOKEN": "..."
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+`account` and top-level `defaults` remain supported when you need multiple same-provider accounts or deterministic default selection, but the minimal shape above is enough.
+
+- Inspect configured accounts:
+
+```bash
+node scripts/profiles.js list --format text
+```
+
+- Start a session against the default selection from `profiles.json`:
+
+```bash
+bash scripts/start-agent.sh
+```
+
+If your file has multiple tenants and no defaults, select the tenant explicitly:
+
+```bash
+bash scripts/start-agent.sh --tenant customer-a
+```
+
+- Override the selected tenant or account for one session:
+
+```bash
+bash scripts/start-agent.sh --tenant customer-a --hostinger-account primary --contabo-account primary
+```
+
+- Validate a non-secret example without creating a real `profiles.json` yet:
+
+```bash
+VPS_PROFILES_PATH=profiles.json.template bash scripts/doctor-unix.sh
+```
+
+The resolver uses this precedence:
+
+1. Explicit CLI selector flags on `start-agent`
+2. Process environment overrides such as `VPS_TENANT`
+3. Optional `defaults` in `profiles.json`
+4. Auto-select only when there is exactly one matching tenant/account
+
+## Provider Requirements
+
+Usable now with the current repository mechanics:
+
+- `hostinger`
+  - Canonical credential key in `profiles.json`: `API_TOKEN`
+  - Also accepted: `HOSTINGER_API_TOKEN`
+  - Source: create a token in Hostinger hPanel API settings
+  - Current repo path: official `hostinger-api-mcp`
+
+- `contabo`
+  - Direct official API credentials: `CLIENT_ID`, `CLIENT_SECRET`, `API_USER`, `API_PASSWORD`
+  - Optional pre-minted token: `CONTABO_ACCESS_TOKEN`
+  - Optional settings: `CONTABO_AUTH_URL`, `CONTABO_API_BASE_URL`
+  - Direct repo path: `node scripts/contabo-api.js list-instances --tenant customer-a --format summary`
+  - Optional remote MCP connector key: `CONTABO_MCP_API_KEY`
+  - Optional remote MCP settings: `CONTABO_MCP_URL`, `CONTABO_MCP_TRANSPORT`
+
+Can be connected immediately for validation with the current regression scripts, but are not yet wired into agent-management MCP wrappers here:
+
+- `aws`
+  - `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`
+  - Optional: `AWS_SESSION_TOKEN`, `AWS_REGION`
+
+- `gcp`
+  - `GOOGLE_APPLICATION_CREDENTIALS` or an already active `gcloud` session
+  - Required for non-interactive project-scoped checks: `GOOGLE_CLOUD_PROJECT`
+  - Optional: `GOOGLE_CLOUD_REGION`
+
+- `azure`
+  - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_SECRET`
+  - Optional but recommended: `AZURE_SUBSCRIPTION_ID`
+
+- `ovh`
+  - `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY`
+  - Optional: `OVH_ENDPOINT`
 
 ## Optional: Contabo MCP Connector
 
@@ -100,22 +248,29 @@ This repo ships wrappers for the remote Contabo connector endpoint:
 
 Setup:
 
-1. Add one of these in `.env`:
-   - `CONTABO_CLIENT_SECRET` (used as connector API key), or
-   - `CONTABO_MCP_API_KEY`, or
-   - `CONTABO_ACCESS_TOKEN`
-2. Optional endpoint overrides:
-   - `CONTABO_MCP_URL` (default: `https://contabo.run.mcp.com.ai/mcp`)
-   - `CONTABO_MCP_TRANSPORT` (default: `http-only`)
-3. Use the updated `.codex/config*.toml` template(s), which include:
+1. Put a `contabo` account in `profiles.json`.
+2. Set `CONTABO_MCP_API_KEY` for the remote connector path.
+3. Optional endpoint overrides go in that account's `settings`:
+   - `CONTABO_MCP_URL`
+   - `CONTABO_MCP_TRANSPORT`
+4. Use the updated `.codex/config*.toml` template(s), which include:
    - `hostinger_api` (official Hostinger MCP wrapper)
    - `contabo_api` (remote Contabo MCP wrapper)
 
 The wrapper runs `mcp-remote` in silent mode to avoid leaking credential headers in logs.
 
+Official Contabo REST API credentials are not reused as the remote connector key.
+
+Recommended operational path for Contabo with the current repo:
+
+- Primary: use the official Contabo REST API for direct scripted read/list operations from this repo.
+- Secondary: use the optional remote MCP connector when you specifically need Contabo tool exposure inside Codex and have a connector key.
+- Fallback: use the official `cntb` CLI when you want a fully official non-MCP path from a shell session.
+- Caveat: Contabo's official API/CLI documentation states Storage VPS are not supported through the API/CLI path.
+
 ## Automated regression checks
 
-Run read-only regression checks (instance count + status distribution) for all providers that are enabled via `.env` auth hints:
+Run read-only regression checks (instance count + status distribution) for providers whose selected account is present in `profiles.json` or whose local CLI session is already active:
 
 Linux/macOS:
 
@@ -129,7 +284,7 @@ Windows PowerShell:
 powershell -ExecutionPolicy Bypass -File scripts/regression-tests.ps1
 ```
 
-By default, AWS/GCP/Azure checks run only when `.env` contains provider auth hints. To also include already logged-in local CLI sessions, set `REGRESSION_USE_LOCAL_SESSIONS=true` before running the script.
+By default, AWS/GCP/Azure checks run only when the selected profile provides credentials. To also include already logged-in local CLI sessions, set `REGRESSION_USE_LOCAL_SESSIONS=true` before running the script.
 
 ## Files you may care about
 
@@ -137,10 +292,15 @@ By default, AWS/GCP/Azure checks run only when `.env` contains provider auth hin
 - Onboarding script: `scripts/devcontainer-onboarding.sh`
 - Agent launcher with intro prompt: `scripts/start-agent.sh`
 - MCP wrapper (Linux): `scripts/hostinger-mcp.sh`
+- Contabo direct API helper: `scripts/contabo-api.js`
 - MCP wrapper (Linux, Contabo): `scripts/contabo-mcp.sh`
 - MCP wrapper (Windows, Contabo): `scripts/contabo-mcp.ps1`
+- Shared profile resolver: `scripts/profiles.js`
+- Multi-tenant credentials template: `profiles.json.template`
 - Linux Codex MCP template: `.codex/config.toml.example`
 - Windows Codex MCP template: `.codex/config.windows.toml.example`
+- Custom Codex agents: `.codex/agents/*.toml`
+- Prompt templates: `PROMPT.md`
 - Agent rules: `AGENTS.md`
 
 ## Manual setup outside Dev Container (optional)
@@ -149,16 +309,18 @@ Linux/macOS:
 
 ```bash
 ./scripts/bootstrap-unix.sh
+node scripts/profiles.js list --format text
 ./scripts/doctor-unix.sh
-bash scripts/start-agent.sh
+bash scripts/start-agent.sh --tenant customer-a
 ```
 
 Windows PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/bootstrap-windows.ps1
+node scripts/profiles.js list --format text
 powershell -ExecutionPolicy Bypass -File scripts/doctor-windows.ps1
-powershell -ExecutionPolicy Bypass -File scripts/start-agent.ps1
+powershell -ExecutionPolicy Bypass -File scripts/start-agent.ps1 -Tenant customer-a
 ```
 
 ## Disable auto-start (optional)

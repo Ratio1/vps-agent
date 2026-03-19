@@ -1,31 +1,55 @@
-# Implementation Plan - Optional Contabo MCP Connector
+# Implementation Plan - Profiles Refactor and Provider Readiness
 
-Date: 2026-03-05
+Date: 2026-03-19
 
 ## Constraints
 
 - Do not add custom MCP server code in this repository.
-- Keep Hostinger official MCP flow unchanged.
+- Keep `hostinger-api-mcp` as the official Hostinger provider.
+- Keep the optional remote Contabo connector path intact for Codex usage, but do not depend on it for direct Contabo API operations.
 - Maintain Linux/macOS and Windows support.
-- Keep credentials out of logs.
+- Keep credentials out of logs, prompts, and tracked config.
+- Ask for explicit confirmation before destructive or billable provider actions.
 
 ## Design
 
-1. Add wrapper scripts:
-   - Linux/macOS: `scripts/contabo-mcp.sh`
-   - Windows: `scripts/contabo-mcp.ps1`
-2. Use `mcp-remote` to bridge Codex stdio to remote Streamable HTTP endpoint.
-3. Load credentials from `.env` and map to MCP header:
-   - Prefer `CONTABO_MCP_API_KEY`, then `CONTABO_ACCESS_TOKEN`, then `CONTABO_CLIENT_SECRET`.
-4. Keep secret out of command arguments by:
-   - Exporting `CONTABO_RUNTIME_API_KEY`
-   - Passing header as literal placeholder: `X-API-Key: ${CONTABO_RUNTIME_API_KEY}`
-5. Run `mcp-remote` with `--silent` to avoid accidental header/value logs.
-6. Update Codex config templates to include optional `contabo_api` server.
-7. Update doctor scripts and docs.
+1. Replace `.env` as the repository-local credential source with `profiles.json`.
+2. Track `profiles.json.template` and ignore real `profiles.json`.
+3. Add a shared resolver script:
+   - parses and validates `profiles.json`
+   - resolves the selected tenant/account for a provider
+   - supports defaults and per-session overrides
+   - supports both Unix shell and PowerShell output
+4. Refactor these scripts to use the shared resolver:
+   - bootstrap
+   - devcontainer onboarding
+   - Hostinger MCP wrappers
+   - Contabo MCP wrappers
+   - doctor scripts
+   - regression scripts
+   - start-agent scripts
+5. Add a minimal Contabo official API helper that:
+   - accepts `CLIENT_ID`, `CLIENT_SECRET`, `API_USER`, `API_PASSWORD`
+   - can reuse `CONTABO_ACCESS_TOKEN` when already minted
+   - performs read/list operations without introducing a local MCP server
+6. Keep direct process environment credentials working as an override path.
+7. Document provider requirements and readiness tiers:
+   - MCP-backed now: Hostinger
+   - official direct API read/list now: Contabo
+   - validation-only with current scripts: AWS, GCP, Azure, OVH
+8. Update architecture docs to record the multi-tenant shift and the Contabo recommendation:
+   - official REST API first for direct repo operations
+   - optional remote MCP connector for Codex tool exposure
+   - official `cntb` CLI fallback
 
 ## Validation
 
-- Run Unix doctor script.
-- Verify remote connector reachability with `mcp-remote-client` + header placeholder.
-- Confirm no token values are printed in script output.
+- Parse `profiles.json.template` and `.codex` TOML files.
+- Run `node scripts/profiles.js validate --file profiles.json.template`.
+- Run `VPS_PROFILES_PATH=profiles.json.template bash scripts/doctor-unix.sh`.
+- Run `scripts/doctor-windows.ps1` with `VPS_PROFILES_PATH=profiles.json.template` when PowerShell is available.
+- Run `node scripts/profiles.js list --file profiles.json.template --format text`.
+- Review the final diff to confirm:
+  - `profiles.json` is ignored
+  - `profiles.json.template` is tracked
+  - no custom MCP server code was introduced

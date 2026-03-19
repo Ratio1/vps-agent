@@ -1,5 +1,7 @@
 .env
-PROMPT.md
+profiles.json
 TODO.md
 node_modules/
 .codex/config.toml
+
+LOCAL_TODO.md
