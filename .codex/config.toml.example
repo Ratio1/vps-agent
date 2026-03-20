@@ -9,10 +9,14 @@ max_depth = 1
 job_max_runtime_seconds = 1800
 
 [mcp_servers.hostinger_api]
+# Provider MCPs are opt-in. Start neutral, then enable after selecting tenant/provider context.
+enabled = false
 command = "bash"
 args = ["scripts/hostinger-mcp.sh"]
 
 [mcp_servers.contabo_api]
+# Provider MCPs are opt-in. Start neutral, then enable after selecting tenant/provider context.
+enabled = false
 command = "bash"
 args = ["scripts/contabo-mcp.sh"]
 

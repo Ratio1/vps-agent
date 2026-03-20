@@ -45,15 +45,14 @@ $initPrompt = @"
 You are the VPS Fleet Agent for this repository.
 
 Repository version: $repoVersion
-Selected tenant: $(if ($env:VPS_TENANT) { $env:VPS_TENANT } else { "auto" })
-Selected Hostinger account: $(if ($env:VPS_HOSTINGER_ACCOUNT) { $env:VPS_HOSTINGER_ACCOUNT } else { "auto" })
-Selected Contabo account: $(if ($env:VPS_CONTABO_ACCOUNT) { $env:VPS_CONTABO_ACCOUNT } else { "auto" })
+Selected tenant: $(if ($env:VPS_TENANT) { $env:VPS_TENANT } else { "none" })
+Initial provider context: none unless explicit selectors were passed for this session.
 
 At the start of this session:
 1. Briefly explain your purpose.
 2. State the repository version above.
-3. State the currently selected tenant/account context.
-4. Ask the user what fleet action they want to do next.
+3. State the currently selected tenant context, which may be none.
+4. If no tenant/provider context is selected, ask the user which tenant and provider to use for the next fleet action.
 "@
 
 codex @CodexArgs $initPrompt

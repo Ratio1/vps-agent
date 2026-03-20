@@ -261,6 +261,84 @@ function normalizeInstanceItems(payload) {
   return null;
 }
 
+async function fetchContaboJson(url, accessToken, errorPrefix) {
+  let response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+        "x-request-id": crypto.randomUUID(),
+      },
+    });
+  } catch (error) {
+    fail(`Unable to reach Contabo API: ${error.message}`);
+  }
+
+  let payload;
+  try {
+    payload = await response.json();
+  } catch (error) {
+    fail(`Unable to parse Contabo API response: ${error.message}`);
+  }
+
+  if (!response.ok) {
+    fail(`${errorPrefix} (${response.status}): ${JSON.stringify(payload)}`);
+  }
+
+  return payload;
+}
+
+async function fetchAllInstances(baseUrl, accessToken) {
+  const pageSize = 200;
+  let page = 1;
+  let totalPages = 1;
+  let firstPayload = null;
+  const allItems = [];
+
+  while (page <= totalPages) {
+    const url = `${baseUrl}/v1/compute/instances?page=${page}&size=${pageSize}`;
+    const payload = await fetchContaboJson(url, accessToken, "Contabo instance listing failed");
+    const items = normalizeInstanceItems(payload);
+    if (!items) {
+      fail("Unexpected Contabo instances payload shape.");
+    }
+
+    if (!firstPayload) {
+      firstPayload = payload;
+    }
+
+    allItems.push(...items);
+
+    const reportedTotalPages = Number(payload?._pagination?.totalPages);
+    if (Number.isFinite(reportedTotalPages) && reportedTotalPages > 0) {
+      totalPages = reportedTotalPages;
+    } else if (items.length < pageSize) {
+      totalPages = page;
+    } else {
+      totalPages = page + 1;
+    }
+
+    page += 1;
+  }
+
+  if (firstPayload && typeof firstPayload === "object" && !Array.isArray(firstPayload)) {
+    return {
+      ...firstPayload,
+      data: allItems,
+      _pagination: {
+        ...(firstPayload._pagination && typeof firstPayload._pagination === "object" ? firstPayload._pagination : {}),
+        size: allItems.length,
+        totalElements: allItems.length,
+        totalPages: 1,
+        page: 1,
+      },
+    };
+  }
+
+  return allItems;
+}
+
 function summarizeInstances(payload) {
   const items = normalizeInstanceItems(payload);
   if (!items) {
@@ -290,30 +368,7 @@ function summarizeInstances(payload) {
 async function listInstances(env, format) {
   const accessToken = await fetchAccessToken(env);
   const baseUrl = env.CONTABO_API_BASE_URL.replace(/\/+$/, "");
-
-  let response;
-  try {
-    response = await fetch(`${baseUrl}/v1/compute/instances`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-        "x-request-id": crypto.randomUUID(),
-      },
-    });
-  } catch (error) {
-    fail(`Unable to reach Contabo API: ${error.message}`);
-  }
-
-  let payload;
-  try {
-    payload = await response.json();
-  } catch (error) {
-    fail(`Unable to parse Contabo instances response: ${error.message}`);
-  }
-
-  if (!response.ok) {
-    fail(`Contabo instance listing failed (${response.status}): ${JSON.stringify(payload)}`);
-  }
+  const payload = await fetchAllInstances(baseUrl, accessToken);
 
   switch (format) {
     case "json":

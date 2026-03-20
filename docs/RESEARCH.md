@@ -11,10 +11,9 @@ Replace repository-local `.env` usage with a multi-tenant `profiles.json`, and d
 1. The repository previously assumed one local credential set in `.env`, which does not scale to:
    - multiple tenants
    - multiple providers
-   - multiple accounts on the same provider
 2. A JSON profiles file with:
    - tenant entries
-   - provider/account entries
+   - provider entries
    - provider-specific credential and setting maps
    - optional defaults only when needed
    fits the repository's bootstrap and guardrail role better than provider-specific `.env` variables.
@@ -48,6 +47,10 @@ Replace repository-local `.env` usage with a multi-tenant `profiles.json`, and d
    - GCP
    - Azure
    - OVH
+12. With multiple tenants in `profiles.json`, any auto-started MCP wrapper that resolves profiles without an explicit tenant will exit before the MCP handshake begins.
+13. Therefore neutral startup across all tenants/providers requires provider MCP entries to stay opt-in and disabled by default in the shipped Codex config.
+14. When a Hostinger MCP session is explicitly requested, it should still use the official `hostinger-api-mcp` package path.
+15. A repo-standard smoke test is better grounded on direct provider list calls than on MCP startup because it exercises the underlying credentials and read/list paths for every configured tenant/provider entry.
 
 ## Decision
 
@@ -61,7 +64,8 @@ Implementation decisions:
 - Keep direct environment variable overrides working for advanced users and CI-style runs.
 - Keep Hostinger on the official `hostinger-api-mcp` package path.
 - Use Contabo's official REST API credentials directly for scripted repo operations.
-- Keep the existing remote MCP connector path optional for agentic use.
+- Keep provider MCP paths optional for agentic use and disabled by default in shipped Codex config templates so startup does not assume tenant/provider context.
+- Add a direct cross-tenant VPS inventory smoke test that enumerates every configured tenant/provider entry without depending on MCP startup.
 
 ## Sources
 

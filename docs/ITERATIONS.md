@@ -1,5 +1,107 @@
 # Iterations
 
+## 2026-03-20 - Local SSH Login Helper Layout
+
+### BUILDER-1
+
+- Rewrote `LOGINS_README.md` so the local `logins/` directory has an explicit tenant-folder layout, provider-prefixed script naming convention, and a fixed SSH launcher template.
+- Generated local untracked per-machine `.sh` login helpers under `logins/ratio1/` and `logins/aurelex/` from the current provider inventories.
+
+### BUILDER-2
+
+- Updated the helper convention and generated scripts to use `root` as the default SSH user for both Hostinger and Contabo.
+- Added live spot-check validation through a small sample of generated scripts instead of treating file generation as sufficient proof.
+
+## 2026-03-20 - Contabo Inventory Pagination Fix
+
+### BUILDER-1
+
+- Traced the incorrect Contabo smoke-test count to `scripts/contabo-api.js`, which only fetched the first `/v1/compute/instances` page.
+- Updated the Contabo helper to request and aggregate all pages before returning JSON or summary output.
+
+### CRITIC-1
+
+- Main regression risk: silently undercounting Contabo fleets would make the repo-standard smoke test unreliable even when provider credentials were valid.
+- Validation requirement: rerun `node scripts/vps-inventory-smoke.js` and confirm the Contabo counts match the provider totals rather than the first page size.
+
+## 2026-03-20 - Mandatory Fleet Smoke Test After Each Edit Pass
+
+### BUILDER-1
+
+- Updated `AGENTS.md` so the repo-level baseline test is explicit: run `node scripts/vps-inventory-smoke.js` after each edit-producing prompt and after each builder pass that modifies files.
+- Added the same expectation to the Definition of Done so verification reporting stays consistent.
+- Tightened the reporting rule so smoke-test results must include VPS counts for each tenant/provider, not only pass/fail totals.
+
+## 2026-03-20 - Tenant Plus Provider Is The Unique Identifier
+
+### BUILDER-1
+
+- Updated the resolver and onboarding flow so the normal repository model is one provider entry per tenant/provider pair.
+- Removed `/primary` from the smoke-test labels and counts output so verification reports are keyed by `tenant/provider`.
+
+### CRITIC-1
+
+- Main regression risk: leaving account labels visible in user-facing flows would keep suggesting a multi-account model that the repository no longer intends to support.
+- Compatibility choice: keep legacy account parsing tolerant internally where possible, but stop surfacing it in normal startup, onboarding, and smoke-test reporting.
+
+### CRITIC-1
+
+- Main risk: leaving the smoke test as a convention instead of a hard rule would keep verification inconsistent across turns.
+- Main operational constraint: the smoke test must stay read-only and cross-tenant so it fits the neutral multi-tenant startup model.
+
+## 2026-03-20 - Neutral Startup With No Default Tenant Or Provider
+
+### BUILDER-1
+
+- Reworked the startup model so the repository no longer sets or documents a default tenant/provider context.
+- Removed the temporary default-tenant guidance from the tracked template/docs and from the local ignored `profiles.json`.
+
+### CRITIC-1
+
+- Main regression risk: any startup path or doctor check that still treated missing defaults as a problem would keep fighting the intended multi-tenant model.
+- Main operational risk: keeping Hostinger MCP auto-enabled would still force a provider assumption at startup.
+
+### BUILDER-2
+
+- Switched `start-agent` prompts to an explicit neutral context (`none`) unless selectors are passed.
+- Disabled both provider MCP entries by default in the local and example Codex configs.
+- Removed the no-default warning from `scripts/profiles.js`.
+- Updated onboarding so it saves tenant/provider credentials without creating defaults.
+
+### CRITIC-2
+
+- Checked that the direct inventory smoke test still works without any default tenant.
+- Checked that provider-specific MCP use remains available, but only as an explicit opt-in session.
+
+## 2026-03-20 - MCP Startup Triage and Cross-Tenant Inventory Smoke Test
+
+### BUILDER-1
+
+- Reproduced the MCP startup failures directly through `scripts/hostinger-mcp.sh` and `scripts/contabo-mcp.sh`.
+- Confirmed the primary failure mode was profile ambiguity: multiple tenants in `profiles.json` with no explicit tenant selection, so the wrappers exited before MCP initialize completed.
+- Confirmed the secondary failure mode on Contabo: the remote connector path still requires `CONTABO_MCP_API_KEY`, which was not configured.
+
+### CRITIC-1
+
+- Main risk: leaving the optional Contabo MCP server enabled by default keeps producing noisy startup failures that are unrelated to the direct provider operations the repo now prefers.
+- Main safety constraint: keep Hostinger on the official MCP package path and do not replace it with a custom wrapper or local MCP implementation.
+
+### BUILDER-2
+
+- Added `scripts/vps-inventory-smoke.js` as a direct read-only smoke test that iterates all configured tenant/provider accounts and lists VPS instances where usable credentials exist.
+- Updated the tracked Codex config templates to disable the optional `contabo_api` MCP server by default.
+- Updated the template and docs for the new standard smoke test.
+
+### CRITIC-2
+
+- Checked that the new smoke test stays read-only and keeps secrets out of logs.
+- Checked that the Contabo direct path remains the preferred scripted path and the optional remote connector remains available when explicitly enabled later.
+
+### BUILDER-3
+
+- Updated the local ignored `.codex/config.toml` to match the new optional-provider defaults.
+- Prepared the local profile changes needed to add the `aurelex` tenant without introducing a default tenant.
+
 ## 2026-03-19 - Simplified Profiles and Contabo Official API Flow
 
 ### BUILDER-1

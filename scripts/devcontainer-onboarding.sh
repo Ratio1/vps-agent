@@ -119,32 +119,28 @@ selected_hostinger_token="$(
     2>/dev/null || true
 )"
 
-if [[ -n "$profiles_overview" && "$profiles_overview" != "No accounts configured." ]]; then
-  ok "profiles.json already contains account entries"
+if [[ -n "$profiles_overview" && "$profiles_overview" != "No provider entries configured." ]]; then
+  ok "profiles.json already contains provider entries"
   printf "%s\n" "$profiles_overview"
 else
-  warn "profiles.json does not contain any configured accounts yet"
+  warn "profiles.json does not contain any configured provider entries yet"
 fi
 
 if is_tty; then
   configure_hostinger="y"
   if [[ -n "$selected_hostinger_token" ]]; then
-    ok "The selected Hostinger account already has a token"
-    printf "Add or update a default Hostinger account now? [y/N]: "
+    ok "A resolvable Hostinger provider entry already has a token"
+    printf "Add or update a Hostinger provider entry now? [y/N]: "
     read -r configure_hostinger
     configure_hostinger="$(echo "${configure_hostinger:-n}" | tr '[:upper:]' '[:lower:]')"
-  elif [[ -n "$profiles_overview" && "$profiles_overview" != "No accounts configured." ]]; then
-    warn "The selected Hostinger account is missing a usable token"
+  elif [[ -n "$profiles_overview" && "$profiles_overview" != "No provider entries configured." ]]; then
+    warn "No single Hostinger provider entry is currently selected; add or update one explicitly if needed"
   fi
 
   if [[ "$configure_hostinger" =~ ^(y|yes)$ ]] || [[ -z "$selected_hostinger_token" ]]; then
     printf "Tenant name [customer-a]: "
     read -r tenant_name
     tenant_name="${tenant_name:-customer-a}"
-
-    printf "Hostinger account name [primary]: "
-    read -r hostinger_account
-    hostinger_account="${hostinger_account:-primary}"
 
     printf "Paste your HOSTINGER_API_TOKEN (input hidden): "
     read -r -s hostinger_token
@@ -156,12 +152,10 @@ if is_tty; then
     node scripts/profiles.js upsert-account \
       --tenant "$tenant_name" \
       --provider hostinger \
-      --account "$hostinger_account" \
       --credential "API_TOKEN=$hostinger_token" \
-      --setting "HOSTINGER_MCP_DEBUG=false" \
-      --make-default >/dev/null
+      --setting "HOSTINGER_MCP_DEBUG=false" >/dev/null
 
-    ok "Saved default Hostinger account in profiles.json"
+    ok "Saved Hostinger provider entry in profiles.json"
   fi
 else
   warn "profiles.json must be updated manually in a terminal session"

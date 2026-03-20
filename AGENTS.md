@@ -62,6 +62,9 @@ For non-trivial changes, use a bounded actor-critic loop. These labels are requi
 ### VERIFIER
 
 - Re-run the narrowest useful validation after the final builder pass.
+- After each user prompt that results in repository edits, run the baseline fleet smoke test: `node scripts/vps-inventory-smoke.js`.
+- If multiple builder passes modify files, rerun `node scripts/vps-inventory-smoke.js` after each modification pass, not just at the end.
+- When presenting smoke-test results, always include the VPS count for each tenant/provider, not only pass/fail status.
 - Validate scripts, docs, and config artefacts that changed.
 - Report pass/fail status and any remaining gaps explicitly.
 
@@ -86,6 +89,8 @@ For non-trivial changes, use a bounded actor-critic loop. These labels are requi
 
 - Validate environment first (`doctor` scripts) before agent execution.
 - Ensure provider credentials are loaded from `profiles.json` or explicit process environment overrides and never logged.
+- Treat `node scripts/vps-inventory-smoke.js` as the standard regression check for this repository. It must be run after every edit-producing prompt and after each modification pass.
+- Report `node scripts/vps-inventory-smoke.js` results with per-tenant/provider VPS counts whenever those counts are available.
 - Prefer read/list operations before any mutating or billable action.
 - Ask for explicit user confirmation intent before destructive actions.
 - Ask for explicit user confirmation intent before billable provider actions such as create, upgrade, resize, restore, or delete operations.
@@ -117,3 +122,4 @@ A change is complete when:
 4. `docs/RESEARCH.md`, `docs/IMPLEMENTATION_PLAN.md`, and `docs/ITERATIONS.md` reflect the current architecture and workflow.
 5. No custom local MCP server code is introduced.
 6. The bounded actor-critic workflow, stop criteria, and verification path are explicit.
+7. The baseline fleet smoke test `node scripts/vps-inventory-smoke.js` has been run after the final modification pass and its result is reported.

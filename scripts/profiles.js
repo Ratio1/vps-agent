@@ -219,9 +219,9 @@ function normalizeProfiles(profiles) {
       }
 
       const accountName = derivedAccountName(account, accountIndex);
-      const dedupeKey = `${provider}::${accountName.toLowerCase()}`;
+      const dedupeKey = provider;
       if (accountIds.has(dedupeKey)) {
-        fail(`Duplicate account ${accountName} for provider ${provider} in tenant ${tenantName}`);
+        fail(`Duplicate provider ${provider} in tenant ${tenantName}. Each tenant/provider pair must be unique.`);
       }
       accountIds.add(dedupeKey);
 
@@ -401,7 +401,7 @@ function resolveSelection(normalizedProfiles, options) {
 
   const candidates = tenant.accounts.filter((entry) => entry.enabled && entry.provider === provider);
   if (candidates.length === 0) {
-    fail(`No enabled ${provider} account configured for tenant ${tenant.tenant}`);
+    fail(`No enabled ${provider} provider entry configured for tenant ${tenant.tenant}`);
   }
 
   const providerEnvKey = `VPS_${provider.toUpperCase().replace(/[^A-Z0-9]/g, "_")}_ACCOUNT`;
@@ -412,19 +412,19 @@ function resolveSelection(normalizedProfiles, options) {
     (defaults.accounts && typeof defaults.accounts[provider] === "string" ? defaults.accounts[provider] : "");
 
   let account;
-  if (accountSelector) {
+  if (candidates.length === 1) {
+    account = candidates[0];
+  } else if (accountSelector) {
     account = candidates.find((entry) => entry.account === accountSelector);
     if (!account) {
-      fail(`Account ${accountSelector} not found for provider ${provider} in tenant ${tenant.tenant}`);
+      fail(`Legacy account selector ${accountSelector} not found for provider ${provider} in tenant ${tenant.tenant}`);
     }
-  } else if (candidates.length === 1) {
-    account = candidates[0];
   } else {
     const explicitDefault = candidates.find((entry) => entry.default);
     if (explicitDefault) {
       account = explicitDefault;
     } else {
-      fail(`Multiple ${provider} accounts configured for tenant ${tenant.tenant}. Select one with ${providerEnvKey} or --account. Available: ${candidates.map((entry) => entry.account).join(", ")}`);
+      fail(`Multiple legacy ${provider} entries configured for tenant ${tenant.tenant}. Each tenant/provider pair must be unique.`);
     }
   }
 
@@ -435,7 +435,6 @@ function resolveSelection(normalizedProfiles, options) {
     env: {
       VPS_SELECTED_TENANT: tenant.tenant,
       VPS_SELECTED_PROVIDER: provider,
-      VPS_SELECTED_ACCOUNT: account.account,
       ...account.env,
     },
   };
@@ -484,7 +483,6 @@ function listAccounts(normalizedProfiles, provider) {
       rows.push({
         tenant: tenant.tenant,
         provider: account.provider,
-        account: account.account,
         defaultTenant: defaults.tenant === tenant.tenant,
         defaultAccount:
           (tenant.defaults.accounts && tenant.defaults.accounts[account.provider] === account.account) ||
@@ -502,7 +500,7 @@ function formatListOutput(rows, format) {
       return JSON.stringify(rows, null, 2);
     case "text":
       if (rows.length === 0) {
-        return "No accounts configured.";
+        return "No provider entries configured.";
       }
       return rows
         .map((row) => {
@@ -510,10 +508,7 @@ function formatListOutput(rows, format) {
           if (row.defaultTenant) {
             flags.push("default-tenant");
           }
-          if (row.defaultAccount) {
-            flags.push("default-account");
-          }
-          return `${row.tenant}\t${row.provider}\t${row.account}${flags.length ? `\t[${flags.join(", ")}]` : ""}`;
+          return `${row.tenant}\t${row.provider}${flags.length ? `\t[${flags.join(", ")}]` : ""}`;
         })
         .join("\n");
     default:
@@ -532,21 +527,17 @@ function validateProfiles(normalizedProfiles, format) {
     warnings.push("No tenants configured.");
   }
 
-  if (normalizedProfiles.tenants.length > 1 && !defaults.tenant && !process.env.VPS_TENANT) {
-    warnings.push("Multiple tenants configured and no default tenant set. Use defaults.tenant or VPS_TENANT.");
-  }
-
   for (const tenant of normalizedProfiles.tenants) {
     for (const account of tenant.accounts) {
       const envValues = Object.values(account.env).map((value) => String(value || "").trim());
       const hasAnyValue = envValues.some((value) => value !== "");
       if (!hasAnyValue) {
-        warnings.push(`Tenant ${tenant.tenant} / ${account.provider} / ${account.account} has no non-empty credential or setting values.`);
+        warnings.push(`Tenant ${tenant.tenant} / ${account.provider} has no non-empty credential or setting values.`);
         continue;
       }
 
       if (account.provider === "hostinger" && !String(account.env.API_TOKEN || account.env.HOSTINGER_API_TOKEN || "").trim()) {
-        warnings.push(`Tenant ${tenant.tenant} / hostinger / ${account.account} is missing API_TOKEN.`);
+        warnings.push(`Tenant ${tenant.tenant} / hostinger is missing API_TOKEN.`);
       }
 
       if (account.provider === "contabo") {
@@ -558,7 +549,7 @@ function validateProfiles(normalizedProfiles, format) {
           isNonEmpty(credentials.apiPassword);
 
         if (!isNonEmpty(credentials.mcpApiKey) && !isNonEmpty(credentials.accessToken) && !hasDirectCredentialSet) {
-          warnings.push(`Tenant ${tenant.tenant} / contabo / ${account.account} is missing a usable Contabo credential set. Provide CONTABO_MCP_API_KEY, CONTABO_ACCESS_TOKEN, or CLIENT_ID/CLIENT_SECRET/API_USER/API_PASSWORD.`);
+          warnings.push(`Tenant ${tenant.tenant} / contabo is missing a usable Contabo credential set. Provide CONTABO_MCP_API_KEY, CONTABO_ACCESS_TOKEN, or CLIENT_ID/CLIENT_SECRET/API_USER/API_PASSWORD.`);
         }
       }
     }
@@ -577,7 +568,7 @@ function validateProfiles(normalizedProfiles, format) {
       if (row.defaultAccount) {
         flags.push("default-account");
       }
-      return `- ${row.tenant} / ${row.provider} / ${row.account}${flags.length ? ` [${flags.join(", ")}]` : ""}`;
+      return `- ${row.tenant} / ${row.provider}${flags.length ? ` [${flags.join(", ")}]` : ""}`;
     }),
     ...warnings.map((warning) => `Warning: ${warning}`),
   ].join("\n");
@@ -625,19 +616,7 @@ function buildWritableProfiles(existingProfiles) {
   return profiles;
 }
 
-function applyWritableAccountName(account, accountName) {
-  const hasExplicitName =
-    Object.prototype.hasOwnProperty.call(account, "account") ||
-    Object.prototype.hasOwnProperty.call(account, "name");
-
-  if (accountName !== "primary" || hasExplicitName) {
-    account.account = accountName;
-    if (Object.prototype.hasOwnProperty.call(account, "name")) {
-      delete account.name;
-    }
-    return;
-  }
-
+function applyWritableAccountName(account) {
   if (Object.prototype.hasOwnProperty.call(account, "account")) {
     delete account.account;
   }
@@ -655,7 +634,6 @@ function upsertAccount(options) {
   }
 
   const provider = options.provider.trim().toLowerCase();
-  const accountName = (options.account || "primary").trim();
   const existing = readProfiles(options.file, true);
   const profiles = buildWritableProfiles(existing ? normalizeProfiles(existing) : null);
 
@@ -668,10 +646,7 @@ function upsertAccount(options) {
     profiles.tenants.push(tenant);
   }
 
-  let account = tenant.accounts.find((entry, index) => {
-    const name = derivedAccountName(entry, index);
-    return entry.provider === provider && name === accountName;
-  });
+  let account = tenant.accounts.find((entry) => entry.provider === provider);
 
   if (!account) {
     account = {
@@ -679,7 +654,7 @@ function upsertAccount(options) {
       credentials: {},
       settings: {},
     };
-    applyWritableAccountName(account, accountName);
+    applyWritableAccountName(account);
     tenant.accounts.push(account);
   } else {
     if (!account.credentials || typeof account.credentials !== "object") {
@@ -689,7 +664,7 @@ function upsertAccount(options) {
       account.settings = {};
     }
     account.provider = provider;
-    applyWritableAccountName(account, accountName);
+    applyWritableAccountName(account);
   }
 
   for (const entry of options.credentials) {
@@ -707,7 +682,7 @@ function upsertAccount(options) {
       profiles.defaults.accounts = {};
     }
     profiles.defaults.tenant = options.tenant;
-    profiles.defaults.accounts[provider] = accountName;
+    profiles.defaults.accounts[provider] = "primary";
 
     if (!tenant.defaults || typeof tenant.defaults !== "object") {
       tenant.defaults = { accounts: {} };
@@ -715,7 +690,7 @@ function upsertAccount(options) {
     if (!tenant.defaults.accounts || typeof tenant.defaults.accounts !== "object") {
       tenant.defaults.accounts = {};
     }
-    tenant.defaults.accounts[provider] = accountName;
+    tenant.defaults.accounts[provider] = "primary";
   }
 
   fs.writeFileSync(options.file, `${JSON.stringify(profiles, null, 2)}\n`, "utf8");
@@ -724,7 +699,6 @@ function upsertAccount(options) {
       file: options.file,
       tenant: options.tenant,
       provider,
-      account: accountName,
       makeDefault: options.makeDefault,
     },
     null,
@@ -739,7 +713,7 @@ function main() {
     case "list": {
       const rawProfiles = readProfiles(args.file, args.optional);
       if (!rawProfiles) {
-        process.stdout.write(args.format === "json" ? "[]\n" : "No accounts configured.\n");
+        process.stdout.write(args.format === "json" ? "[]\n" : "No provider entries configured.\n");
         return;
       }
       const normalized = normalizeProfiles(rawProfiles);

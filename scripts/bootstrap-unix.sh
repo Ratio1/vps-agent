@@ -62,6 +62,6 @@ fi
 
 echo "Bootstrap complete. Next steps:"
 echo "1) Update profiles.json with your tenant/provider credentials"
-echo "2) Review configured accounts: node scripts/profiles.js list --format text"
+echo "2) Review configured provider entries: node scripts/profiles.js list --format text"
 echo "3) Run: ./scripts/doctor-unix.sh"
 echo "4) Start Codex in this repo: bash scripts/start-agent.sh"

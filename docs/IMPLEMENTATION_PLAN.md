@@ -17,7 +17,7 @@ Date: 2026-03-19
 2. Track `profiles.json.template` and ignore real `profiles.json`.
 3. Add a shared resolver script:
    - parses and validates `profiles.json`
-   - resolves the selected tenant/account for a provider
+   - resolves the selected tenant/provider entry
    - supports defaults and per-session overrides
    - supports both Unix shell and PowerShell output
 4. Refactor these scripts to use the shared resolver:
@@ -41,6 +41,8 @@ Date: 2026-03-19
    - official REST API first for direct repo operations
    - optional remote MCP connector for Codex tool exposure
    - official `cntb` CLI fallback
+9. Add a standard direct smoke test that iterates every configured tenant/provider entry and performs a read-only VPS listing.
+10. Keep provider MCP servers disabled by default in `.codex/config*.toml` so Codex startup stays neutral and does not assume tenant/provider context.
 
 ## Validation
 
@@ -49,6 +51,7 @@ Date: 2026-03-19
 - Run `VPS_PROFILES_PATH=profiles.json.template bash scripts/doctor-unix.sh`.
 - Run `scripts/doctor-windows.ps1` with `VPS_PROFILES_PATH=profiles.json.template` when PowerShell is available.
 - Run `node scripts/profiles.js list --file profiles.json.template --format text`.
+- Run `node scripts/vps-inventory-smoke.js --file profiles.json.template` only as a structure check when the template contains placeholder credentials; run it against a real local `profiles.json` for live provider validation.
 - Review the final diff to confirm:
   - `profiles.json` is ignored
   - `profiles.json.template` is tracked

@@ -21,7 +21,7 @@ When you open this repo in a VS Code Dev Container:
 3. The script guides you through:
    - Codex login (ChatGPT or API key)
    - Creating or updating `profiles.json`
-   - Entering a default Hostinger tenant/account token
+   - Entering a Hostinger tenant/provider token
    - Final health check
 4. Codex starts automatically and sends an intro that includes:
    - Agent purpose
@@ -60,7 +60,7 @@ The script runs automatically and asks for:
 1. Codex authentication:
    - `ChatGPT login` (recommended), or
    - `OPENAI_API_KEY`
-2. Your default tenant name and a `HOSTINGER_API_TOKEN` (from Hostinger hPanel -> Profile -> API)
+2. A tenant name and a `HOSTINGER_API_TOKEN` (from Hostinger hPanel -> Profile -> API)
 
 The script writes `profiles.json` for you and runs checks.
 
@@ -163,30 +163,30 @@ Repository credentials now live in `profiles.json`, not `.env`.
 }
 ```
 
-`account` and top-level `defaults` remain supported when you need multiple same-provider accounts or deterministic default selection, but the minimal shape above is enough.
+The repository startup flow does not assume a default tenant or provider. In the normal model, each `tenant/provider` pair is unique. Start neutral, then pass `--tenant` when you want a provider-specific session. The shared resolver still honors explicit selector flags, environment overrides, and optional defaults if you choose to maintain them yourself.
 
-- Inspect configured accounts:
+- Inspect configured provider entries:
 
 ```bash
 node scripts/profiles.js list --format text
 ```
 
-- Start a session against the default selection from `profiles.json`:
+- Run the standard cross-tenant VPS inventory smoke test:
+
+```bash
+node scripts/vps-inventory-smoke.js
+```
+
+- Start a neutral session with no tenant or provider preselected:
 
 ```bash
 bash scripts/start-agent.sh
 ```
 
-If your file has multiple tenants and no defaults, select the tenant explicitly:
+Select a tenant explicitly when you want to work in a single tenant context:
 
 ```bash
 bash scripts/start-agent.sh --tenant customer-a
-```
-
-- Override the selected tenant or account for one session:
-
-```bash
-bash scripts/start-agent.sh --tenant customer-a --hostinger-account primary --contabo-account primary
 ```
 
 - Validate a non-secret example without creating a real `profiles.json` yet:
@@ -200,7 +200,7 @@ The resolver uses this precedence:
 1. Explicit CLI selector flags on `start-agent`
 2. Process environment overrides such as `VPS_TENANT`
 3. Optional `defaults` in `profiles.json`
-4. Auto-select only when there is exactly one matching tenant/account
+4. Auto-select only when there is exactly one matching tenant/provider entry
 
 ## Provider Requirements
 
@@ -210,7 +210,7 @@ Usable now with the current repository mechanics:
   - Canonical credential key in `profiles.json`: `API_TOKEN`
   - Also accepted: `HOSTINGER_API_TOKEN`
   - Source: create a token in Hostinger hPanel API settings
-  - Current repo path: official `hostinger-api-mcp`
+  - Current repo path: official `hostinger-api-mcp`, enabled only when you opt into a provider-specific MCP session for a specific tenant/provider
 
 - `contabo`
   - Direct official API credentials: `CLIENT_ID`, `CLIENT_SECRET`, `API_USER`, `API_PASSWORD`
@@ -248,12 +248,15 @@ This repo ships wrappers for the remote Contabo connector endpoint:
 
 Setup:
 
-1. Put a `contabo` account in `profiles.json`.
+1. Put a `contabo` provider entry in `profiles.json`.
 2. Set `CONTABO_MCP_API_KEY` for the remote connector path.
-3. Optional endpoint overrides go in that account's `settings`:
+3. Optional endpoint overrides go in that provider entry's `settings`:
    - `CONTABO_MCP_URL`
    - `CONTABO_MCP_TRANSPORT`
-4. Use the updated `.codex/config*.toml` template(s), which include:
+4. Provider MCP entries are disabled by default in `.codex/config*.toml` so agent startup stays neutral across tenants and providers.
+5. Enable `contabo_api` only after adding the connector key and selecting an explicit tenant/provider context for that session.
+6. Enable `hostinger_api` only when you intentionally want a Hostinger MCP session for a specific tenant/provider.
+7. Use the updated `.codex/config*.toml` template(s), which include:
    - `hostinger_api` (official Hostinger MCP wrapper)
    - `contabo_api` (remote Contabo MCP wrapper)
 

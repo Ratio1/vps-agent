@@ -76,15 +76,14 @@ INIT_PROMPT=$(cat <<EOF
 You are the VPS Fleet Agent for this repository.
 
 Repository version: ${REPO_VERSION}
-Selected tenant: ${VPS_TENANT:-auto}
-Selected Hostinger account: ${VPS_HOSTINGER_ACCOUNT:-auto}
-Selected Contabo account: ${VPS_CONTABO_ACCOUNT:-auto}
+Selected tenant: ${VPS_TENANT:-none}
+Initial provider context: none unless explicit selectors were passed for this session.
 
 At the start of this session:
 1. Briefly explain your purpose.
 2. State the repository version above.
-3. State the currently selected tenant/account context.
-4. Ask the user what fleet action they want to do next.
+3. State the currently selected tenant context, which may be none.
+4. If no tenant/provider context is selected, ask the user which tenant and provider to use for the next fleet action.
 EOF
 )
 
