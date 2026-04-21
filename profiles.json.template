@@ -27,6 +27,11 @@
             "CONTABO_API_BASE_URL": "https://api.contabo.com",
             "CONTABO_MCP_URL": "https://contabo.run.mcp.com.ai/mcp",
             "CONTABO_MCP_TRANSPORT": "http-only"
+
+            "hosts" :{
+              "host-01" : "A.B.C.D",
+              "host-02" : "A.B.C.D"
+            }
           }
         }
       ]
