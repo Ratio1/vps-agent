@@ -20,6 +20,7 @@ Date: 2026-03-19
    - resolves the selected tenant/provider entry
    - supports defaults and per-session overrides
    - supports both Unix shell and PowerShell output
+   - preserves optional structured account metadata like `ssh` without flattening it into env vars
 4. Refactor these scripts to use the shared resolver:
    - bootstrap
    - devcontainer onboarding

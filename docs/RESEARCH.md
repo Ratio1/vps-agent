@@ -15,6 +15,7 @@ Replace repository-local `.env` usage with a multi-tenant `profiles.json`, and d
    - tenant entries
    - provider entries
    - provider-specific credential and setting maps
+   - optional structured account metadata such as `ssh`
    - optional defaults only when needed
    fits the repository's bootstrap and guardrail role better than provider-specific `.env` variables.
 3. Current Hostinger usage in this repo still maps cleanly to a single canonical key:
@@ -60,6 +61,8 @@ Implementation decisions:
 
 - Track `profiles.json.template`; ignore `profiles.json`.
 - Support a simplified `profiles.json` shape by default, with optional `defaults` only when needed.
+- Keep env-exported profile data limited to flat `credentials` and `settings` maps.
+- Allow optional structured account metadata such as `ssh` to stay in the profile file without being flattened into resolver env output.
 - Use `VPS_TENANT` and provider-specific selectors like `VPS_HOSTINGER_ACCOUNT` and `VPS_CONTABO_ACCOUNT` for per-session overrides.
 - Keep direct environment variable overrides working for advanced users and CI-style runs.
 - Keep Hostinger on the official `hostinger-api-mcp` package path.

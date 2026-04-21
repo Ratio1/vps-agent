@@ -144,6 +144,14 @@ Repository credentials now live in `profiles.json`, not `.env`.
             "CLIENT_SECRET": "...",
             "API_USER": "...",
             "API_PASSWORD": "..."
+          },
+          "ssh": {
+            "ssh_user": "root",
+            "ssh_pem": "aidamian.pem",
+            "hosts": {
+              "r1s-01": "184.174.38.249",
+              "r1s-02": "89.116.28.21"
+            }
           }
         }
       ]
@@ -164,6 +172,8 @@ Repository credentials now live in `profiles.json`, not `.env`.
 ```
 
 The repository startup flow does not assume a default tenant or provider. In the normal model, each `tenant/provider` pair is unique. Start neutral, then pass `--tenant` when you want a provider-specific session. The shared resolver still honors explicit selector flags, environment overrides, and optional defaults if you choose to maintain them yourself.
+
+`credentials` and `settings` remain flat env-style key/value maps. Optional structured SSH inventory metadata belongs under the account-level `ssh` object and is preserved in `profiles.json`, but it is not exported by `scripts/profiles.js resolve`.
 
 - Inspect configured provider entries:
 

@@ -1,5 +1,13 @@
 # Iterations
 
+## 2026-04-21 - Structured SSH Metadata Support In Profiles
+
+### BUILDER-1
+
+- Added a regression test for `scripts/profiles.js` proving that a nested account-level `ssh` block validates cleanly and is ignored by env resolution.
+- Updated the profiles resolver to treat `ssh` as structured metadata instead of an env key, with a small shape check for `ssh` and `ssh.hosts`.
+- Updated the tracked README and architecture notes so the supported profile contract is explicit: flat `credentials`/`settings` maps for env export, optional `ssh` metadata preserved in-file only.
+
 ## 2026-03-20 - Local SSH Login Helper Layout
 
 ### BUILDER-1

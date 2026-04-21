@@ -17,6 +17,7 @@ const RESERVED_ACCOUNT_KEYS = new Set([
   "description",
   "credentials",
   "settings",
+  "ssh",
 ]);
 
 function fail(message) {
@@ -218,6 +219,8 @@ function normalizeProfiles(profiles) {
         fail(`Account entry ${accountIndex} for tenant ${tenantName} is missing provider`);
       }
 
+      validateStructuredAccountMetadata(account, tenantName, provider);
+
       const accountName = derivedAccountName(account, accountIndex);
       const dedupeKey = provider;
       if (accountIds.has(dedupeKey)) {
@@ -256,6 +259,27 @@ function normalizeProfiles(profiles) {
     filePath: profiles.filePath,
     warnings,
   };
+}
+
+function validateStructuredAccountMetadata(account, tenantName, provider) {
+  if (!Object.prototype.hasOwnProperty.call(account, "ssh")) {
+    return;
+  }
+
+  if (!account.ssh || typeof account.ssh !== "object" || Array.isArray(account.ssh)) {
+    fail(`Tenant ${tenantName} / ${provider} has invalid ssh metadata. Expected an object.`);
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(account.ssh, "hosts") &&
+    (
+      !account.ssh.hosts ||
+      typeof account.ssh.hosts !== "object" ||
+      Array.isArray(account.ssh.hosts)
+    )
+  ) {
+    fail(`Tenant ${tenantName} / ${provider} has invalid ssh.hosts metadata. Expected an object map.`);
+  }
 }
 
 function flattenAccountEnv(account, provider) {
