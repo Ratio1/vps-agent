@@ -70,6 +70,12 @@ Implementation decisions:
 - Keep provider MCP paths optional for agentic use and disabled by default in shipped Codex config templates so startup does not assume tenant/provider context.
 - Add a direct cross-tenant VPS inventory smoke test that enumerates every configured tenant/provider entry without depending on MCP startup.
 
+## Public Documentation Boundary
+
+Tracked documentation is public by default. Public docs should explain architecture, setup, guardrails, placeholder profile shapes, and validation commands. Live operational notes belong only in ignored local paths such as `_reports/`, `private/`, `ops-private/`, or `docs/*.local.md`.
+
+Do not record live tenant names, hostnames, IP addresses, exact fleet counts, SSH key names, private key paths, CVE rollout targets, or provider action history in tracked docs. `docs/ITERATIONS.md` remains tracked, but it should contain public-safe workflow summaries rather than fleet-level evidence.
+
 ## Sources
 
 - Contabo API docs: https://api.contabo.com/

@@ -9,3 +9,6 @@ LOCAL_TODO.md
 logins/
 
 _reports/
+private/
+ops-private/
+docs/*.local.md

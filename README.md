@@ -95,6 +95,14 @@ Now ask things like:
 - Ask the agent to list/show details first before mutating anything.
 - Never commit `profiles.json`.
 
+## Public Documentation Boundary
+
+This repository is intended to be safe to publish. Tracked documentation should describe architecture, bootstrap, guardrails, provider requirements, placeholder examples, and validation commands.
+
+Do not put live operational inventory in tracked docs: tenant names, hostnames, IP addresses, exact fleet counts, SSH key names, private key paths, CVE rollout targets, or provider action history. Keep those notes in ignored local paths such as `_reports/`, `private/`, `ops-private/`, or `docs/*.local.md`.
+
+`docs/ITERATIONS.md` is tracked, so entries there must stay public-safe and summarize workflow-level changes only.
+
 ## Codex Workflow Profiles
 
 The repository now includes a bounded actor-critic workflow and reusable project-scoped Codex profiles.
@@ -147,10 +155,10 @@ Repository credentials now live in `profiles.json`, not `.env`.
           },
           "ssh": {
             "ssh_user": "root",
-            "ssh_pem": "aidamian.pem",
+            "ssh_pem": "ssh-key.pem",
             "hosts": {
-              "r1s-01": "184.174.38.249",
-              "r1s-02": "89.116.28.21"
+              "vps-01": "203.0.113.10",
+              "vps-02": "203.0.113.11"
             }
           }
         }

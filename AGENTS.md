@@ -72,7 +72,7 @@ For non-trivial changes, use a bounded actor-critic loop. These labels are requi
 
 - Stop early if the current critic reports no material findings and the verifier passes.
 - Do not exceed three builder passes and two critic passes without escalating the unresolved blocker to the user.
-- Record meaningful iterations in `docs/ITERATIONS.md`.
+- Record meaningful public-safe iterations in `docs/ITERATIONS.md`; keep live operational detail only in ignored local notes.
 
 ## Actor-Critic Quality Bar
 
@@ -99,11 +99,15 @@ For non-trivial changes, use a bounded actor-critic loop. These labels are requi
 
 ## Security Rules
 
+- Treat every tracked document as public by default.
 - Never commit `profiles.json`.
 - Never commit `.codex/config.toml` with local secrets.
 - Never print or echo token values.
 - Keep wrapper scripts minimal and auditable.
 - Never persist transient auth headers or copy secrets into docs, prompts, or example configs.
+- Never record live tenant names, hostnames, IP addresses, exact fleet counts, SSH key names, private key paths, or host-level remediation details in tracked docs unless they are placeholder examples.
+- Keep required smoke-test count reporting in Codex responses and terminal output, but do not copy live fleet counts into tracked docs.
+- Put private operational notes only in ignored local paths such as `_reports/`, `private/`, `ops-private/`, or `docs/*.local.md`.
 - Prefer repo-scoped instructions, config, and agent files over ad hoc prompt stuffing.
 
 ## Cross-Platform Rules
@@ -119,7 +123,7 @@ A change is complete when:
 1. Scripts referenced in docs actually exist and execute.
 2. Linux/macOS and Windows bootstrap paths are documented.
 3. `profiles.json.template`, `.codex/config*.example`, and `.codex/agents/*.toml` are up to date.
-4. `docs/RESEARCH.md`, `docs/IMPLEMENTATION_PLAN.md`, and `docs/ITERATIONS.md` reflect the current architecture and workflow.
+4. `docs/RESEARCH.md`, `docs/IMPLEMENTATION_PLAN.md`, and `docs/ITERATIONS.md` reflect the current architecture and public-safe workflow.
 5. No custom local MCP server code is introduced.
 6. The bounded actor-critic workflow, stop criteria, and verification path are explicit.
 7. The baseline fleet smoke test `node scripts/vps-inventory-smoke.js` has been run after the final modification pass and its result is reported.
