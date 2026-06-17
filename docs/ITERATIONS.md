@@ -4,6 +4,31 @@ This file is tracked and must remain public-safe. Record workflow-level changes,
 
 Private operational notes belong only in ignored local paths such as `_reports/`, `metrics/<tenant-slug>/`, `private/`, `ops-private/`, or `docs/*.local.md`.
 
+## 2026-06-17 - Private Fleet Metrics Snapshots
+
+### PRECHECK
+
+- Ran `scripts/doctor-unix.sh` before private metrics work.
+- Confirmed tenant-specific metrics paths are ignored and suitable for live
+  operational notes.
+
+### BUILDER-1
+
+- Added an ignored private bandwidth snapshot for selected fleet nodes and
+  dates.
+- Ran the baseline fleet inventory smoke test after the edit pass.
+
+### BUILDER-2
+
+- Added an ignored private provider hardware comparison snapshot using static
+  host probes, a short compute probe, and short contention samples.
+- Kept live node details and measurements out of tracked documentation.
+
+### VERIFIER
+
+- Re-ran the baseline fleet inventory smoke test after each edit-producing
+  pass.
+
 ## 2026-06-08 - Private Metrics Convention
 
 ### PRECHECK
