@@ -73,6 +73,7 @@ For non-trivial changes, use a bounded actor-critic loop. These labels are requi
 - Stop early if the current critic reports no material findings and the verifier passes.
 - Do not exceed three builder passes and two critic passes without escalating the unresolved blocker to the user.
 - Record meaningful public-safe iterations in `docs/ITERATIONS.md`; keep live operational detail only in ignored local notes.
+- For reusable private metrics, write tenant-specific snapshots under ignored paths such as `metrics/<tenant-slug>/`.
 
 ## Actor-Critic Quality Bar
 
@@ -107,7 +108,8 @@ For non-trivial changes, use a bounded actor-critic loop. These labels are requi
 - Never persist transient auth headers or copy secrets into docs, prompts, or example configs.
 - Never record live tenant names, hostnames, IP addresses, exact fleet counts, SSH key names, private key paths, or host-level remediation details in tracked docs unless they are placeholder examples.
 - Keep required smoke-test count reporting in Codex responses and terminal output, but do not copy live fleet counts into tracked docs.
-- Put private operational notes only in ignored local paths such as `_reports/`, `private/`, `ops-private/`, or `docs/*.local.md`.
+- Put private operational notes and tenant-specific metrics only in ignored local paths such as `_reports/`, `metrics/<tenant-slug>/`, `private/`, `ops-private/`, or `docs/*.local.md`.
+- Keep `metrics/README.md` tracked as the public-safe index for the private metrics convention.
 - Prefer repo-scoped instructions, config, and agent files over ad hoc prompt stuffing.
 
 ## Cross-Platform Rules

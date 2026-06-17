@@ -9,6 +9,7 @@ LOCAL_TODO.md
 logins/
 
 _reports/
+metrics/ratio1/
 private/
 ops-private/
 docs/*.local.md

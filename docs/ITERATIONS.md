@@ -2,7 +2,20 @@
 
 This file is tracked and must remain public-safe. Record workflow-level changes, validation commands, and architectural decisions. Do not record live tenant names, hostnames, IP addresses, exact fleet counts, SSH key names, private key paths, CVE rollout targets, or provider action history here.
 
-Private operational notes belong only in ignored local paths such as `_reports/`, `private/`, `ops-private/`, or `docs/*.local.md`.
+Private operational notes belong only in ignored local paths such as `_reports/`, `metrics/<tenant-slug>/`, `private/`, `ops-private/`, or `docs/*.local.md`.
+
+## 2026-06-08 - Private Metrics Convention
+
+### PRECHECK
+
+- Ran `scripts/doctor-unix.sh` before editing.
+- Reviewed ignore rules, repository guidance, and the existing private-report convention.
+
+### BUILDER-1
+
+- Added a tracked metrics README for the public-safe convention.
+- Added ignore coverage for tenant-specific metrics snapshots.
+- Updated repository guidance so future private operational metrics are kept under ignored tenant-specific metrics paths.
 
 ## 2026-05-07 - Public Documentation Hygiene
 
