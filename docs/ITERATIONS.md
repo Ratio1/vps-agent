@@ -4,6 +4,51 @@ This file is tracked and must remain public-safe. Record workflow-level changes,
 
 Private operational notes belong only in ignored local paths such as `_reports/`, `metrics/<tenant-slug>/`, `private/`, `ops-private/`, or `docs/*.local.md`.
 
+## 2026-07-29 - Existing r1setup Configuration Recovery
+
+### PRECHECK
+
+- Ran the repository doctor and read-only provider inventory before local
+  configuration changes.
+- Reviewed the current upstream r1setup discovery/import implementation and
+  verified its test suite before using it with existing services.
+
+### BUILDER-1
+
+- Reconstructed a local mainnet configuration by registering existing
+  machines and importing discovered services without deployment.
+- Preserved discovered logical names, runtime names, volume paths, image
+  variants, and applied service-file versions.
+- Ran the baseline fleet inventory smoke test after the modification pass.
+
+### CRITIC-1
+
+- Checked schema-v2 machine and instance mappings, SSH metadata, file
+  permissions, and the absence of stored password fields or private-key
+  material.
+- Compared pre- and post-import container identities and start times to verify
+  that configuration recovery did not restart remote services.
+
+### BUILDER-2
+
+- Repeated the bounded recovery for a second local configuration and created
+  private portable exports with restricted permissions.
+- Kept endpoints, aliases, fleet counts, SSH paths, and runtime evidence only
+  in ignored private artifacts.
+- Ran the baseline fleet inventory smoke test after the modification pass.
+
+### CRITIC-2
+
+- Verified both configurations against provider inventory and live discovery,
+  checked cross-configuration integrity, and restored the intended active
+  configuration pointer.
+
+### VERIFIER
+
+- Re-ran read-only connectivity, service-status, and bounded log checks.
+- Re-ran repository regression tests and the baseline fleet inventory smoke
+  test; live provider counts were reported only in the operator response.
+
 ## 2026-06-17 - Private Fleet Metrics Snapshots
 
 ### PRECHECK
